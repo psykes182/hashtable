@@ -1,0 +1,158 @@
+
+package de.hska.iwi.ads.solution.hashtable;
+
+import de.hska.iwi.ads.dictionary.AbstractDictionary;
+import org.junit.jupiter.api.Test;
+
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Testklasse für die Hashtable mit quadratischem Sondieren.
+ * Enthält 15 Tests für get(), put(), Kollisionen, Vollauslastung und Sonderfälle.
+ */
+public class HashtableTest {
+
+
+
+    /**
+     * Hilfsmethode: Erzeugt eine neue Hashtable mit kleiner Kapazität (für Kollisionstests).
+     */
+    private Map<Integer, String> newMap() {
+        return new Hashtable<>(7); // kleine Größe für einfache Kollisionen
+    }
+
+    // --------------------------- GET-Tests ---------------------------
+
+    @Test
+    void get_onEmpty_returnsNull() {
+        Map<Integer, String> map = newMap();
+        assertNull(map.get(1), "Leere Map muss null zurückgeben");
+    }
+
+    @Test
+    void get_existingKey_returnsValue() {
+        Map<Integer, String> map = newMap();
+        map.put(42, "vierzig-zwei");
+        assertEquals("vierzig-zwei", map.get(42));
+    }
+
+    @Test
+    void get_nonExistingKey_returnsNull() {
+        Map<Integer, String> map = newMap();
+        map.put(1, "eins");
+        assertNull(map.get(99), "Nicht vorhandener Schlüssel muss null liefern");
+    }
+
+    @Test
+    void get_afterCollisions_findsCorrectValue() {
+        Map<Integer, String> map = newMap();
+        map.put(0, "null");
+        map.put(7, "sieben");
+        map.put(14, "vierzehn");
+        assertEquals("null", map.get(0));
+        assertEquals("sieben", map.get(7));
+        assertEquals("vierzehn", map.get(14));
+    }
+
+    @Test
+    void get_nullOrWrongType_returnsNull() {
+        Map<Integer, String> map = newMap();
+        map.put(1, "eins");
+        assertNull(map.get(null), "get(null) sollte null liefern");
+        assertNull(map.get("kein Integer"), "get(falscher Typ) sollte null liefern");
+    }
+
+    // --------------------------- PUT-Tests ---------------------------
+
+    @Test
+    void put_firstInsert_returnsNull() {
+        Map<Integer, String> map = newMap();
+        assertNull(map.put(1, "eins"), "Erstes Einfügen muss null zurückgeben");
+    }
+
+    @Test
+    void put_overwritesExistingKey_returnsOldValue() {
+        Map<Integer, String> map = newMap();
+        map.put(1, "eins");
+        String old = map.put(1, "eins-neu");
+        assertEquals("eins", old);
+        assertEquals("eins-neu", map.get(1));
+    }
+
+    @Test
+    void put_multipleKeys_insertsAll() {
+        Map<Integer, String> map = newMap();
+        map.put(1, "eins");
+        map.put(2, "zwei");
+        map.put(3, "drei");
+        assertEquals("eins", map.get(1));
+        assertEquals("zwei", map.get(2));
+        assertEquals("drei", map.get(3));
+    }
+
+    @Test
+    void put_withCollisions_allKeysAccessible() {
+        Map<Integer, String> map = newMap();
+        map.put(0, "null");
+        map.put(7, "sieben");
+        map.put(14, "vierzehn");
+        assertEquals("null", map.get(0));
+        assertEquals("sieben", map.get(7));
+        assertEquals("vierzehn", map.get(14));
+    }
+
+    @Test
+    void updateKey_afterCollisions_doesNotAffectOthers() {
+        Map<Integer, String> map = newMap();
+        map.put(0, "null");
+        map.put(7, "sieben");
+        map.put(14, "vierzehn");
+        String old = map.put(7, "neu-sieben");
+        assertEquals("sieben", old);
+        assertEquals("neu-sieben", map.get(7));
+        assertEquals("null", map.get(0));
+        assertEquals("vierzehn", map.get(14));
+    }
+
+    // --------------------------- Volle Tabelle ---------------------------
+
+    @Test
+    void put_whenFull_throwsDictionaryFullException() {
+        Map<Integer, String> map = newMap();
+        for (int i = 0; i < 7; i++) {
+            map.put(i, "v" + i);
+        }
+        assertThrows(AbstractDictionary.DictionaryFullException.class, () -> map.put(99, "voll"));
+    }
+
+    // --------------------------- Zusatztests ---------------------------
+
+    @Test
+    void put_and_get_largeNumbers_workCorrectly() {
+        Map<Integer, String> map = newMap();
+        map.put(1000, "tausend");
+        map.put(2000, "zweitausend");
+        assertEquals("tausend", map.get(1000));
+        assertEquals("zweitausend", map.get(2000));
+    }
+
+    @Test
+    void put_and_get_negativeKeys_workCorrectly() {
+        Map<Integer, String> map = newMap();
+        map.put(-1, "minus eins");
+        map.put(-8, "minus acht");
+        assertEquals("minus eins", map.get(-1));
+        assertEquals("minus acht", map.get(-8));
+    }
+
+    @Test
+    void put_and_get_stringValues_workCorrectly() {
+        Map<Integer, String> map = newMap();
+        map.put(1, "eins");
+        map.put(2, "zwei");
+        assertEquals("eins", map.get(1));
+        assertEquals("zwei", map.get(2));
+    }
+}
