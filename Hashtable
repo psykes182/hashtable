@@ -1,0 +1,157 @@
+
+package de.hska.iwi.ads.solution.hashtable;
+
+import de.hska.iwi.ads.dictionary.AbstractHashMap;
+import de.hska.iwi.ads.dictionary.AbstractDictionary; // für DictionaryFullException
+import java.util.Map;
+
+/**
+ * Hashtable mit geschlossenen Behältern und quadratischem Sondieren.
+ * Größe wird im Konstruktor festgelegt und nicht mehr verändert.
+ * Keine Nutzung von Oberklassen-Methoden (kein Iterator o.ä.) in get/put.
+ */
+public class Hashtable<K extends Comparable<K>, V> extends AbstractHashMap<K, V> {
+
+    /**
+     * Optionaler Default-Konstruktor (z. B. praktisch für MapTest).
+     * Delegiert auf den eigentlichen Konstruktor mit einer Standardgröße.
+     */
+    public Hashtable() {
+        this(101); // typische Primzahlgröße; du kannst hier auch einen anderen Default wählen
+    }
+
+    /**
+     * Größe beim Erzeugen festlegen (wie in der Aufgabe gefordert).
+     */
+    public Hashtable(int capacity) {
+        super(capacity); // AbstractHashMap initialisiert hashtable[]
+    }
+
+    /**
+     * Minimale, mutierbare Entry-Implementierung (Alternative zu AbstractMap.SimpleEntry).
+     */
+    private static final class SimpleEntryImpl<K, V> implements Map.Entry<K, V> {
+        private final K key;
+        private V value;
+
+        SimpleEntryImpl(K key, V value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        @Override
+        public K getKey() {
+            return key;
+        }
+
+        @Override
+        public V getValue() {
+            return value;
+        }
+
+        @Override
+        public V setValue(V newValue) {
+            V old = this.value;
+            this.value = newValue;
+            return old;
+        }
+    }
+
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public V get(Object o) {
+        if (o == null) {
+            return null;
+        }
+        // K extends Comparable<K>, aber wegen Type Erasure können wir nur "compatible" prüfen
+        if (!(o instanceof Comparable)) {
+            return null;
+        }
+
+        K key = (K) o;
+
+        int m = hashtable.length;
+        if (m == 0) {
+            return null;
+        }
+
+        int start = startIndex(key);
+        // Quadratisches Sondieren: i = 0..m-1
+        for (int i = 0; i < m; i++) {
+            int idx = probeIndex(start, i, m);
+            Map.Entry<K, V> entry = hashtable[idx];
+
+            if (entry == null) {
+                // Leerer Slot: Schlüssel kann in dieser Probe-Kette nicht (mehr) vorkommen
+                return null;
+            }
+            if (entry.getKey().equals(key)) {
+                return entry.getValue();
+            }
+            // sonst weiter sondieren
+        }
+
+        // Nach kompletter Runde nichts gefunden
+        return null;
+    }
+
+    @Override
+    public V put(K key, V value) {
+        if (key == null) {
+            throw new NullPointerException("key must not be null");
+        }
+
+        int m = hashtable.length;
+        if (m == 0) {
+            // keine Plätze verfügbar
+            throw new AbstractDictionary.DictionaryFullException();
+        }
+
+        int start = startIndex(key);
+
+        // Quadratisches Sondieren: i = 0..m-1
+        for (int i = 0; i < m; i++) {
+            int idx = probeIndex(start, i, m);
+            Map.Entry<K, V> entry = hashtable[idx];
+
+            if (entry == null) {
+                // Freier Behälter -> hier neu einfügen
+                hashtable[idx] = new SimpleEntryImpl<>(key, value);
+                return null;
+            }
+
+            if (entry.getKey().equals(key)) {
+                // Schlüssel existiert -> Wert überschreiben, alten Wert zurückgeben
+                V old = entry.getValue();
+                entry.setValue(value);
+                return old;
+            }
+
+            // sonst weiter sondieren
+        }
+
+        // Kein freier Behälter in einer vollständigen Runde -> voll
+        throw new AbstractDictionary.DictionaryFullException();
+    }
+
+
+    /**
+     * Startindex aus hashCode bestimmen (nicht-negativ, modulo Tabellenlänge).
+     */
+    private int startIndex(K key) {
+        int m = hashtable.length;
+        // & 0x7fffffff macht negativem hashCode den Vorzeichenbit "neutral"
+        return (key.hashCode() & 0x7fffffff) % m;
+    }
+
+    /**
+     * Quadratisches Sondieren:
+     * index(i) = (start + i^2) % m, für i = 0,1,2,...,m-1
+     * Achtung: i*i kann int-Überlauf erzeugen → mit long rechnen.
+     */
+    private int probeIndex(int start, int i, int m) {
+        return (int) ((start + (long) i * i) % m);
+    }
+}
+
